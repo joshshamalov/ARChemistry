@@ -1,0 +1,182 @@
+# ARChemistry Full Pipeline
+
+# ARChemistry Pipeline Implementation Guide
+
+Below is a detailed, step-by-step implementation guide for the ARChemistry pipeline, specifying which framework is responsible for each component and how they interact.
+
+## 1. User Image Input & Preprocessing
+
+**Framework: Android Camera API + OpenCV**
+
+1. **Image Capture/Selection**
+   - Use Android Camera API or Intent system to capture or select an image
+   - Provide a custom cropping interface using Android's Canvas or a library like uCrop
+   - Store both original and cropped images in app storage
+
+2. **Image Preprocessing with OpenCV**
+   - Convert the cropped image to grayscale using `Imgproc.cvtColor()`
+   - Apply adaptive thresholding with `Imgproc.adaptiveThreshold()`
+   - Reduce noise with `Imgproc.GaussianBlur()`
+   - Enhance edges with `Imgproc.Canny()`
+   - Store the preprocessed image for visualization and next steps
+
+## 2. Text Recognition & Symbol Detection
+
+**Framework: ML Kit + OpenCV**
+
+1. **OCR Text Detection**
+   - Use ML Kit's text recognition API to detect all text in the image
+   - Process the results to identify chemical symbols (C, H, O, N, etc.)
+   - Group multi-character symbols (Cl, Br, etc.) based on proximity
+   - Store the bounding box coordinates and text for each detected symbol
+
+2. **Symbol Masking**
+   - Create a mask using OpenCV to remove the detected text regions
+   - Use `Imgproc.rectangle()` to fill the bounding boxes with white
+   - Store the masked image for line detection
+
+## 3. Line & Bond Detection
+
+**Framework: OpenCV**
+
+1. **Line Detection**
+   - Apply `Imgproc.HoughLinesP()` to the masked image to detect straight lines
+   - Filter lines based on length and angle to identify potential chemical bonds
+   - Merge nearby line endpoints to create vertices (atom positions)
+   - Detect parallel lines to identify double/triple bonds
+
+2. **Junction Detection**
+   - Identify line intersections using OpenCV geometry functions
+   - Create a map of all vertices (atom positions) with their coordinates
+   - Associate detected text symbols with the nearest vertices
+
+## 4. Molecular Graph Construction
+
+**Framework: JGraphT + Custom Adapter**
+
+1. **Graph Creation**
+   - Create a `Multigraph<Atom, Bond>` using JGraphT
+   - Add vertices for each atom position, with element type from OCR or default to Carbon
+   - Add edges for each detected bond, with bond order based on parallel line detection
+   - Store vertex coordinates from the image for 2D visualization
+
+2. **Chemical Validation**
+   - Check valence rules for each atom using a custom validator
+   - Identify and mark aromatic rings using JGraphT's cycle detection
+   - Apply chemical heuristics to resolve ambiguities (e.g., implicit hydrogens)
+
+## 5. Reaction Selection & Transformation
+
+**Framework: JGraphT + Custom Chemistry Logic**
+
+1. **Reagent Selection**
+   - Present a UI for selecting the chemical reagent
+   - Map the selection to a predefined reaction transformation rule
+
+2. **Graph Transformation**
+   - Clone the original molecular graph
+   - Apply the selected reaction rules to transform the graph
+   - Rules should modify vertices (atoms) and edges (bonds) according to reaction type
+   - Use JGraphT's graph manipulation methods to add/remove/modify elements
+
+## 6. Molecular Structure Generation
+
+**Framework: CDK + Custom Adapter**
+
+1. **JGraphT to CDK Conversion**
+   - Create a custom adapter to convert the JGraphT graph to a CDK `IAtomContainer`
+   - Map JGraphT vertices to CDK atoms with correct element types
+   - Map JGraphT edges to CDK bonds with correct bond orders
+
+2. **3D Coordinate Generation**
+   - Use CDK's `StructureDiagramGenerator` for initial 2D coordinates if needed
+   - Use CDK's `ModelBuilder3D` to generate 3D coordinates
+   - Apply force field optimization if available
+   - Extract the 3D coordinates for AR visualization
+
+## 7. 2D Visualization (Optional Debug View)
+
+**Framework: Jetpack Compose Canvas**
+
+1. **2D Rendering**
+   - Create a custom Canvas drawing function in Jetpack Compose
+   - Draw atoms as circles with element symbols
+   - Draw bonds as lines with appropriate styling for bond order
+   - Use the 2D coordinates from the graph or CDK
+
+2. **Interactive View**
+   - Implement zoom and pan gestures for the 2D view
+   - Add highlighting for selected atoms/bonds
+   - Display chemical properties on selection
+
+## 8. 3D AR Visualization
+
+**Framework: SceneView + ARCore**
+
+1. **Molecular Model Creation**
+   - Create a custom builder to convert molecular data to 3D models
+   - Represent atoms as spheres with element-appropriate colors
+   - Represent bonds as cylinders connecting atoms
+   - Scale the model appropriately for AR viewing
+
+2. **AR Scene Setup**
+   - Use ARCore for plane detection and tracking
+   - Use SceneView to create and manage the AR scene
+   - Position the molecular model on a detected plane
+   - Add lighting and shadows for realistic appearance
+
+3. **Interactive AR Experience**
+   - Implement gestures for rotating, scaling, and moving the model
+   - Add labels for atoms that appear on tap
+   - Provide options to view different representations (ball-and-stick, space-filling, etc.)
+
+## 9. Error Handling & Debugging
+
+**Framework: Custom Logger + Android UI**
+
+1. **Pipeline Logging**
+   - Create a custom logger that records each step of the pipeline
+   - Log input parameters, intermediate results, and output for each step
+   - Include timing information for performance analysis
+
+2. **Visual Debugging**
+   - Create a debug view that shows the result of each pipeline step
+   - Display the original image, preprocessed image, text detection, line detection, etc.
+   - Allow stepping through the pipeline to identify issues
+
+3. **Error Recovery**
+   - Implement fallback strategies for each step
+   - Provide user feedback for recoverable errors
+   - Allow manual correction of detected structures if needed
+
+## 10. Performance Optimization
+
+**Framework: All**
+
+1. **Background Processing**
+   - Run image processing and graph operations in background threads
+   - Use Kotlin Coroutines for asynchronous operations
+   - Show progress indicators for long-running operations
+
+2. **Caching**
+   - Cache intermediate results to avoid redundant processing
+   - Store processed molecules for quick retrieval
+   - Implement a LRU cache for recently used structures
+
+3. **Model Optimization**
+   - Optimize 3D models for mobile rendering
+   - Use level-of-detail techniques for complex molecules
+   - Batch rendering operations for efficiency
+
+## Framework Responsibilities Summary
+
+1. **Android Native**: User interface, camera, storage, threading
+2. **OpenCV**: Image preprocessing, line detection, geometry
+3. **ML Kit**: Text recognition, symbol detection
+4. **JGraphT**: Molecular graph representation, manipulation, algorithms
+5. **CDK**: Chemical knowledge, SMILES parsing, 3D coordinate generation
+6. **Jetpack Compose**: 2D visualization, UI components
+7. **SceneView/ARCore**: 3D AR visualization, interaction
+8. **Custom Components**: Adapters between frameworks, chemistry logic, error handling
+
+This pipeline leverages the strengths of each framework while avoiding their limitations, creating a robust system for chemical structure recognition and visualization in AR.
