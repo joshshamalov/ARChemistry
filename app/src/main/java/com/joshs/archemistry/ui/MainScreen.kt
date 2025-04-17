@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import com.joshs.archemistry.ui.theme.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -151,7 +152,7 @@ fun MainScreen(
                     text = "ARChemistry",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF00BCD4) // Cyan color as shown in the image
+                    color = ARPrimaryBlue
                 )
             }
         }
@@ -170,8 +171,8 @@ fun MainScreen(
                     .fillMaxWidth()
                     .height(300.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF333333))
-                    .border(1.dp, Color.Gray, RoundedCornerShape(8.dp)),
+                    .background(ARCardBackground)
+                    .border(1.dp, ARButtonGray, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 if (selectedImageBitmap != null) {
@@ -189,7 +190,7 @@ fun MainScreen(
                             .padding(8.dp)
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF78909C)) // Blue-gray color
+                            .background(ARButtonGray)
                             .clickable {
                                 // Navigate to crop screen with current image
                                 if (viewModel.selectedImageUri != null) {
@@ -207,7 +208,7 @@ fun MainScreen(
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit Image",
-                            tint = Color.White
+                            tint = ARTextPrimary
                         )
                     }
                 } else {
@@ -218,14 +219,14 @@ fun MainScreen(
                         Text(
                             text = "No image selected",
                             fontSize = 20.sp,
-                            color = Color.White,
+                            color = ARTextPrimary,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Capture or select an image of a chemical reaction",
                             fontSize = 14.sp,
-                            color = Color.LightGray,
+                            color = ARTextSecondary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 32.dp)
                         )
@@ -250,8 +251,8 @@ fun MainScreen(
                         .padding(end = 8.dp),
                     shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Black,
-                        contentColor = Color.White
+                        containerColor = ARButtonGray,
+                        contentColor = ARTextPrimary
                     )
                 ) {
                     Row(
@@ -279,8 +280,8 @@ fun MainScreen(
                         .padding(start = 8.dp),
                     shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Black,
-                        contentColor = Color.White
+                        containerColor = ARButtonGray,
+                        contentColor = ARTextPrimary
                     )
                 ) {
                     Row(
@@ -307,7 +308,7 @@ fun MainScreen(
                     text = "Select Reagent:",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = ARTextPrimary
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -325,8 +326,8 @@ fun MainScreen(
                             .fillMaxWidth()
                             .menuAnchor(),
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
-                            unfocusedBorderColor = Color.Gray,
-                            focusedBorderColor = Color.White
+                            unfocusedBorderColor = ARButtonGray,
+                            focusedBorderColor = ARTextPrimary
                         )
                     )
 
@@ -398,16 +399,16 @@ fun MainScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.DarkGray,
-                    contentColor = Color.White,
-                    disabledContainerColor = Color.Gray,
-                    disabledContentColor = Color.LightGray
+                    containerColor = ARButtonGray,
+                    contentColor = ARTextPrimary,
+                    disabledContainerColor = ARDisabledGray,
+                    disabledContentColor = ARTextSecondary
                 )
             ) {
                 if (isProcessing) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = Color.White,
+                        color = ARTextPrimary,
                         strokeWidth = 2.dp
                     )
                 } else {
@@ -429,8 +430,8 @@ fun MainScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF3F51B5), // Indigo color
-                    contentColor = Color.White
+                    containerColor = ARPrimaryBlue,
+                    contentColor = ARTextPrimary
                 )
             ) {
                 Text(
@@ -450,8 +451,8 @@ fun MainScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF673AB7), // Deep Purple color
-                    contentColor = Color.White
+                    containerColor = ARSecondaryPurple,
+                    contentColor = ARTextPrimary
                 )
             ) {
                 Text(

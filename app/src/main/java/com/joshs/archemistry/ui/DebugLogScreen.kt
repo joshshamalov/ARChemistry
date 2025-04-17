@@ -34,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.joshs.archemistry.ui.theme.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -102,7 +103,7 @@ fun DebugLogScreen(
             ) {
                 items(logMessages) { logMessage ->
                     LogMessageItem(logMessage)
-                    HorizontalDivider(color = Color.LightGray, thickness = 1.dp)
+                    HorizontalDivider(color = ARButtonGray, thickness = 1.dp)
                 }
 
                 // If no logs, show a message
@@ -114,7 +115,7 @@ fun DebugLogScreen(
                                 .fillMaxWidth()
                                 .padding(16.dp),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            color = Color.Gray
+                            color = ARTextSecondary
                         )
                     }
                 }
@@ -139,11 +140,11 @@ fun DebugLogScreen(
 @Composable
 fun LogMessageItem(logMessage: LogMessage) {
     val logColor = when (logMessage.level) {
-        "INFO" -> Color.White
-        "ERROR" -> Color(0xFFFF6B6B) // Light red
-        "WARNING" -> Color(0xFFFFD166) // Light orange
-        "DEBUG" -> Color(0xFF6BFFB8) // Light green
-        else -> Color.White
+        "INFO" -> ARTextPrimary
+        "ERROR" -> ARStatusRed
+        "WARNING" -> ARWarningOrange
+        "DEBUG" -> ARSuccessGreen
+        else -> ARTextPrimary
     }
 
     val context = LocalContext.current
@@ -165,7 +166,7 @@ fun LogMessageItem(logMessage: LogMessage) {
                 Text(
                     text = logMessage.timestamp.formatTimestamp(),
                     fontSize = 12.sp,
-                    color = Color.Gray,
+                    color = ARTextSecondary,
                     fontFamily = FontFamily.Monospace
                 )
 
@@ -203,7 +204,7 @@ fun LogMessageItem(logMessage: LogMessage) {
                 Text(
                     text = logMessage.stackTrace,
                     fontSize = 12.sp,
-                    color = Color.Gray,
+                    color = ARTextSecondary,
                     fontFamily = FontFamily.Monospace,
                     lineHeight = 14.sp
                 )
@@ -222,7 +223,7 @@ fun LogMessageItem(logMessage: LogMessage) {
             Icon(
                 imageVector = Icons.Outlined.ContentCopy,
                 contentDescription = "Copy Log",
-                tint = Color.Gray
+                tint = ARTextSecondary
             )
         }
     }

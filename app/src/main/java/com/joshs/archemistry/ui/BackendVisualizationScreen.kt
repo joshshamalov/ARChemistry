@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import com.joshs.archemistry.ui.theme.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -67,63 +68,63 @@ fun BackendVisualizationScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-            
+
             // Step 1: Image Input
             PipelineStep(
                 stepNumber = 1,
                 title = "Image Input & Reagent Selection",
                 description = "The user selects or captures a reaction image. They are prompted to crop and optionally rotate the image to focus only on the reactant. A reagent is selected from the dropdown."
             )
-            
+
             // Step 2: Image Preprocessing
             PipelineStep(
                 stepNumber = 2,
                 title = "Image Preprocessing",
                 description = "The selected image is processed by OpenCV: converted to grayscale, denoised, and enhanced to prepare for text and structure recognition."
             )
-            
+
             // Step 3: Text Recognition
             PipelineStep(
                 stepNumber = 3,
                 title = "Text Recognition / Bounding Boxes",
                 description = "ML Kit scans the image for chemical symbols. For each symbol detected, a blue bounding box is drawn. Bounding box coordinates and text labels are saved for the next masking step."
             )
-            
+
             // Step 4: Text Masking
             PipelineStep(
                 stepNumber = 4,
                 title = "Atomic Symbol Text Masking",
                 description = "Text within the blue bounding boxes is masked out using OpenCV, but the boxes remain as placeholders for those atom locations."
             )
-            
+
             // Step 5: Line-Angle Structure Recognition
             PipelineStep(
                 stepNumber = 5,
                 title = "Line-Angle Structure Recognition",
                 description = "OpenCV detects bond lines in the masked image. Green lines represent detected bonds. Red circles are drawn at junctions and endpoints (representing implicit Carbon atoms). Coordinates of all vertices and lines are recorded."
             )
-            
+
             // Step 6: Reactant Graph Construction
             PipelineStep(
                 stepNumber = 6,
                 title = "Reactant Graph Construction",
                 description = "An undirected multigraph is created using JGraphT. Nodes represent atoms (explicit or implicit), and edges represent bonds. This graph is preserved as the original reactant graph."
             )
-            
+
             // Step 7: Reaction Execution
             PipelineStep(
                 stepNumber = 7,
                 title = "Reaction Execution",
                 description = "A copy of the multigraph is passed into the reaction engine. The selected reagent's logic is applied, and the structure is modified accordingly."
             )
-            
+
             // Step 8: Coordinate Generation
             PipelineStep(
                 stepNumber = 8,
                 title = "Coordinate Generation",
                 description = "A custom coordinate generator is used to convert the 2D graph into a 3D coordinate model."
             )
-            
+
             // Step 9: AR Rendering
             PipelineStep(
                 stepNumber = 9,
@@ -160,13 +161,13 @@ fun PipelineStep(
             ) {
                 Text(
                     text = "Step $stepNumber",
-                    color = Color.White,
+                    color = ARTextPrimary,
                     fontWeight = FontWeight.Bold
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             // Title
             Text(
                 text = title,
@@ -174,7 +175,7 @@ fun PipelineStep(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             // Description
             Text(
                 text = description,
@@ -182,19 +183,19 @@ fun PipelineStep(
                 lineHeight = 20.sp,
                 textAlign = TextAlign.Justify
             )
-            
+
             // Placeholder for image (in a real app, this would show actual processing results)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp)
                     .padding(top = 16.dp)
-                    .background(Color.LightGray, RoundedCornerShape(4.dp)),
+                    .background(ARCardBackground, RoundedCornerShape(4.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "Visualization placeholder for Step $stepNumber",
-                    color = Color.DarkGray
+                    color = ARTextSecondary
                 )
             }
         }

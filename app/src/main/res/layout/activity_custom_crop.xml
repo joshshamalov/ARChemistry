@@ -13,17 +13,17 @@
         android:id="@+id/statusBarSpacer"
         android:layout_width="match_parent"
         android:layout_height="24dp"
-        android:background="#2196F3"
+        android:background="@color/ar_dark_background"
         app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="#2196F3"
+        android:background="@color/ar_dark_background"
         app:layout_constraintTop_toBottomOf="@+id/statusBarSpacer"
         app:title="Crop Image"
-        app:titleTextColor="#FFFFFF">
+        app:titleTextColor="@color/ar_text_primary">
 
         <FrameLayout
             android:layout_width="match_parent"
@@ -34,7 +34,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical"
                 android:text="Crop Image"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/ar_text_primary"
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
@@ -49,8 +49,8 @@
                 android:minWidth="120dp"
                 android:paddingStart="4dp"
                 android:paddingEnd="4dp"
-                android:textColor="#FFFFFF"
-                android:backgroundTint="#555555" />
+                android:textColor="@color/ar_text_primary"
+                android:backgroundTint="@color/ar_button_gray" />
         </FrameLayout>
 
     </androidx.appcompat.widget.Toolbar>
@@ -75,14 +75,14 @@
             android:id="@+id/cropImageView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            app:cropBackgroundColor="#80333333"
+            app:cropBackgroundColor="#80121212"
             app:cropGuidelines="on"
             app:cropGuidelinesColor="#000000"
-            app:cropBorderCornerColor="#FF0000"
+            app:cropBorderCornerColor="@color/ar_status_red"
             app:cropBorderCornerOffset="5dp"
             app:cropBorderCornerLength="20dp"
             app:cropBorderCornerThickness="3dp"
-            app:cropBorderLineColor="#FFFFFF"
+            app:cropBorderLineColor="@color/ar_text_primary"
             app:cropBorderLineThickness="2dp"
             app:cropAutoZoomEnabled="true"
             app:cropFixAspectRatio="false"
@@ -119,27 +119,27 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
-            android:backgroundTint="#555555"
+            android:backgroundTint="@color/ar_button_gray"
             android:text="Rotate Left"
-            android:textColor="#FFFFFF" />
+            android:textColor="@color/ar_text_primary" />
 
         <Button
             android:id="@+id/rotateRightButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:backgroundTint="#555555"
+            android:backgroundTint="@color/ar_button_gray"
             android:text="Rotate Right"
-            android:textColor="#FFFFFF" />
+            android:textColor="@color/ar_text_primary" />
 
         <Button
             android:id="@+id/flipButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:backgroundTint="#555555"
+            android:backgroundTint="@color/ar_button_gray"
             android:text="Flip"
-            android:textColor="#FFFFFF" />
+            android:textColor="@color/ar_text_primary" />
 
         </LinearLayout>
 
@@ -151,9 +151,9 @@
             android:layout_marginEnd="16dp"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="48dp"
-            android:backgroundTint="#2196F3"
+            android:backgroundTint="@color/ar_primary_blue"
             android:text="CROP"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/ar_text_primary"
             android:textSize="16sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"

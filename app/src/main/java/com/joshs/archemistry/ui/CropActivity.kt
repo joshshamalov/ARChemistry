@@ -2,6 +2,7 @@ package com.joshs.archemistry.ui
 
 import android.content.Intent
 import android.graphics.Color
+import com.joshs.archemistry.R
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -84,14 +85,14 @@ class CropActivity : AppCompatActivity() {
                     cropMenuCropButtonTitle = "Crop"
                     activityTitle = "Crop Image"
                     activityMenuIconColor = android.graphics.Color.WHITE
-                    toolbarColor = android.graphics.Color.parseColor("#2196F3")
+                    toolbarColor = android.graphics.Color.parseColor("#121212") // ARDarkBackground
                     toolbarTitleColor = android.graphics.Color.WHITE
 
                     // Show menu options for rotation and flipping
                     cropMenuCropButtonIcon = android.R.drawable.ic_menu_crop
 
                     // Basic customization
-                    backgroundColor = android.graphics.Color.parseColor("#99000000")  // Semi-transparent black background
+                    backgroundColor = android.graphics.Color.parseColor("#99121212")  // Semi-transparent dark background
                 }
             )
         )

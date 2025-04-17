@@ -32,8 +32,8 @@ class CustomCropActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Set the window background to be transparent
-        window.setBackgroundDrawableResource(android.R.color.transparent)
+        // Set the window background to match our theme
+        window.setBackgroundDrawableResource(R.color.ar_dark_background)
 
         setContentView(R.layout.activity_custom_crop)
 
