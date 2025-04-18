@@ -145,7 +145,8 @@ fun MainScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 40.dp, bottom = 16.dp),  // Significantly increase top padding
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -161,15 +162,15 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp, alignment = Alignment.Top)  // Align to top with more spacing
         ) {
             // Image selection area
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(280.dp)  // Slightly reduce height to fit everything on screen
                     .clip(RoundedCornerShape(8.dp))
                     .background(ARCardBackground)
                     .border(1.dp, ARButtonGray, RoundedCornerShape(8.dp)),
@@ -448,7 +449,8 @@ fun MainScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(56.dp)
+                    .padding(bottom = 8.dp),  // Add bottom padding to the last button
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ARSecondaryPurple,
@@ -461,6 +463,9 @@ fun MainScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
+
+            // Add spacer at the bottom for better spacing
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
