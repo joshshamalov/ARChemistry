@@ -1,5 +1,7 @@
 package com.joshs.archemistry.ui
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,14 +24,22 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.joshs.archemistry.ui.theme.*
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.joshs.archemistry.ui.theme.*
+import com.joshs.archemistry.utils.Logger
+import com.joshs.archemistry.viewmodel.MainViewModel
 
 /**
  * Screen that visualizes the backend processing pipeline.
@@ -38,8 +48,37 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun BackendVisualizationScreen(
     @Suppress("UNUSED_PARAMETER") pipeline: String?,
+    viewModel: MainViewModel,  // Accept the ViewModel parameter
     onBack: () -> Unit
 ) {
+    // Use the passed MainViewModel to get the selected image
+    val selectedImageBitmap = viewModel.selectedImageBitmap
+    val selectedReagent = viewModel.selectedReagent
+    val selectedImageUri = viewModel.selectedImageUri
+
+    // Log that we're using the passed ViewModel
+    Logger.log("Using passed ViewModel with image: ${selectedImageBitmap != null}")
+
+    // Log the current state
+    val context = LocalContext.current
+    Logger.log("Backend visualization opened with image: ${selectedImageBitmap != null}")
+    Logger.log("Backend visualization image URI: $selectedImageUri")
+
+    if (selectedImageBitmap != null) {
+        Logger.log("Backend visualization image dimensions: ${selectedImageBitmap.width}x${selectedImageBitmap.height}")
+    } else {
+        Logger.log("Backend visualization image bitmap is null")
+        // Try to load the image from the URI if available
+        if (selectedImageUri != null) {
+            Logger.log("Attempting to load image from URI: $selectedImageUri")
+            // Try to load the image from the URI
+            viewModel.updateSelectedImage(selectedImageUri, context)
+        }
+    }
+
+    if (selectedReagent != null) {
+        Logger.log("Selected reagent: ${selectedReagent.name}")
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -73,7 +112,9 @@ fun BackendVisualizationScreen(
             PipelineStep(
                 stepNumber = 1,
                 title = "Image Input & Reagent Selection",
-                description = "The user selects or captures a reaction image. They are prompted to crop and optionally rotate the image to focus only on the reactant. A reagent is selected from the dropdown."
+                description = "The user selects or captures a reaction image. They are prompted to crop and optionally rotate the image to focus only on the reactant. A reagent is selected from the dropdown.",
+                imageBitmap = selectedImageBitmap,
+                reagentName = selectedReagent?.name
             )
 
             // Step 2: Image Preprocessing
@@ -139,7 +180,9 @@ fun BackendVisualizationScreen(
 fun PipelineStep(
     stepNumber: Int,
     title: String,
-    description: String
+    description: String,
+    imageBitmap: Bitmap? = null,
+    reagentName: String? = null
 ) {
     Card(
         modifier = Modifier
@@ -184,19 +227,52 @@ fun PipelineStep(
                 textAlign = TextAlign.Justify
             )
 
-            // Placeholder for image (in a real app, this would show actual processing results)
+            // Show reagent name if available (only for Step 1)
+            if (stepNumber == 1 && reagentName != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Selected Reagent: $reagentName",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ARPrimaryBlue
+                )
+            }
+
+            // Visualization area
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
+                    .height(180.dp) // Increased height for better image display
                     .padding(top = 16.dp)
                     .background(ARCardBackground, RoundedCornerShape(4.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "Visualization placeholder for Step $stepNumber",
-                    color = ARTextSecondary
-                )
+                when {
+                    // For Step 1 with image, show the actual image
+                    stepNumber == 1 && imageBitmap != null -> {
+                        Logger.log("Displaying image for Step 1 with dimensions: ${imageBitmap.width}x${imageBitmap.height}")
+                        // Convert bitmap to ImageBitmap outside of the composable
+                        val imageBitmapState = remember(imageBitmap) { imageBitmap.asImageBitmap() }
+                        Image(
+                            bitmap = imageBitmapState,
+                            contentDescription = "Selected Image",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(8.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                    // For other steps or if no image, show placeholder
+                    else -> {
+                        if (stepNumber == 1) {
+                            Logger.log("No image available for Step 1")
+                        }
+                        Text(
+                            text = "Visualization placeholder for Step $stepNumber",
+                            color = ARTextSecondary
+                        )
+                    }
+                }
             }
         }
     }

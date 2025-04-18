@@ -106,6 +106,7 @@ fun AppNavigation() {
 
             BackendVisualizationScreen(
                 pipeline = pipeline,
+                viewModel = mainViewModel,  // Explicitly pass the shared ViewModel
                 onBack = { navController.popBackStack() }
             )
         }

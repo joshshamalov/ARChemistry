@@ -424,6 +424,18 @@ fun MainScreen(
             // Backend button
             Button(
                 onClick = {
+                    // Log the current state before navigating
+                    Logger.log("Navigating to Backend with image: ${selectedImageBitmap != null}")
+                    if (selectedImageBitmap != null) {
+                        Logger.log("Image dimensions: ${selectedImageBitmap.width}x${selectedImageBitmap.height}")
+                    }
+
+                    // Make sure the image is saved in the ViewModel before navigating
+                    if (selectedImageUri != null && selectedImageBitmap != null) {
+                        // Ensure the image is set in the ViewModel
+                        viewModel.updateSelectedImage(selectedImageUri, selectedImageBitmap)
+                    }
+
                     onNavigateToBackend("default")
                 },
                 modifier = Modifier
