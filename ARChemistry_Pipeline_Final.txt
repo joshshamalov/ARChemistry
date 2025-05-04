@@ -1,0 +1,141 @@
+# ARChemistry Detailed Pipeline Implementation Guide (Current - Imago OCR / RDKit Server)
+
+This document provides a detailed, step-by-step technical guide for the **current functional** ARChemistry processing pipeline, which utilizes a server-based Imago OCR and RDKit architecture. It specifies framework responsibilities, inputs/outputs, and implementation details. This reflects the actual codebase and supersedes previous documentation describing offline or SMILES-based intermediate flows.
+
+**Target Audience:** Developer working with the application and server code.
+**Core Principle:** Structure recognition, reaction simulation, and 3D coordinate generation occur on a backend server. The Android app handles input, network communication, and AR rendering of the final 3D data. Network connectivity is required.
+
+## Implementation Status
+
+*   **Status:** Functional Client-Server Implementation. The steps below describe the current working pipeline.
+
+---
+
+## Current Pipeline Step-by-Step Implementation
+
+### 1. User Image Input & Initial Handling (Android App - `feature_reactant`)
+
+*   **Frameworks:** Android SDK, Jetpack Compose, `Android Image Cropper` (`v4.6.0`)
+*   **Input:** User action (capture via Camera or select from Gallery).
+*   **Processing:**
+    1.  Launch Camera/Gallery Intent (`ActivityResultContracts`). Handle permissions (`Accompanist Permissions`). Use `FileProvider` for camera URIs.
+    2.  Launch `Android Image Cropper` (`CropImageContract`) with the selected/captured image URI. Configure cropper options.
+    3.  Receive cropped image URI (`ReactantViewModel.onImageCropped`).
+    4.  Display cropped image preview (`AsyncImage`).
+*   **Output:** URI of the cropped bitmap image, stored in `ReactantViewModel` state.
+*   **Error Handling:** Handle permission denial, user cancellation, cropper errors. Log, show message via ViewModel state.
+
+### 2. Reagent Selection (Android App - `feature_reactant`)
+
+*   **Frameworks:** Jetpack Compose (Material 3 `ExposedDropdownMenuBox`)
+*   **Input:** User selection from dropdown menu.
+*   **Processing:**
+    1.  Populate dropdown with list of available reagents (defined in `ReactantViewModel` state).
+    2.  Update `ReactantViewModel` state with the selected reagent name (`ReactantViewModel.onReagentSelected`).
+*   **Output:** Selected reagent name string, stored in `ReactantViewModel` state.
+
+### 3. Image & Reagent Transmission to Server (Android App - `feature_reactant`, `core`)
+
+*   **Frameworks:** Android SDK (`ContentResolver`), Retrofit (`2.11.0`), OkHttp, Gson, Kotlin Coroutines
+*   **Input:** Cropped image URI, Selected Reagent Name string (from `ReactantViewModel` state).
+*   **Processing (`ReactantViewModel.onProcessReactionClicked`):**
+    1.  Triggered by "Process Reaction" button click.
+    2.  Show loading indicator in UI.
+    3.  Use `ContentResolver` to open an `InputStream` for the image URI.
+    4.  Convert `InputStream` to `MultipartBody.Part` for the image file (using helper like `core.network.uriToMultipartBodyPart`). Include filename and appropriate MIME type (e.g., `image/png`, `image/jpeg`).
+    5.  Convert the reagent name string to a `RequestBody` (using helper like `core.network.toRequestBody` with `multipart/form-data` type).
+    6.  Execute the network call via `ApiService.processImage(imagePart, reagentNamePart)` within a `viewModelScope.launch` block, typically on `Dispatchers.IO`.
+*   **Output:** Asynchronous network POST request sent to the server endpoint `/process_image`.
+*   **Error Handling:** Catch exceptions during file reading or network execution. Update ViewModel state with error message. Handle network errors via Retrofit `Response` object in the next step.
+
+### 4. Server-Side Processing (Server - `archem_server/app.py`)
+
+*   **Frameworks:** Flask, **Imago OCR** (external executable via `subprocess`), **RDKit**
+*   **Input:** HTTP POST request containing multipart form data: `image` file part and `reagent_name` text part.
+*   **Processing (`process_reaction_to_3d_data` function):**
+    1.  **Receive & Save Image:** Extract image data, save to a temporary file.
+    2.  **Run Imago OCR:** Execute `imago_console.exe` with input image path and output Molfile path using `subprocess.run`. Check for errors/timeout.
+    3.  **Read Reactant (RDKit):** Parse the generated Molfile using `Chem.MolFromMolFile`. Handle parsing errors. Sanitize the molecule.
+    4.  **Select Reaction (RDKit):** Look up the `rdChemReactions.Reaction` object based on the received `reagent_name`. Handle unsupported reagents.
+    5.  **Run Reaction (RDKit):** Execute `reaction.RunReactants((reactant_mol,))`. Handle cases where the reaction doesn't apply or yields multiple products (select first). Handle iterative application for hydrogenation.
+    6.  **Process Product (RDKit):** Sanitize the product molecule (`Chem.SanitizeMol`). Add explicit hydrogens (`Chem.AddHs`).
+    7.  **Generate 3D Coords (RDKit):** Embed the molecule using `AllChem.EmbedMolecule` (e.g., ETKDGv3). Handle embedding failures.
+    8.  **Optimize Coords (RDKit):** Optimize geometry using `AllChem.UFFOptimizeMolecule`. Handle optimization failures gracefully.
+    9.  **Extract Data:** Get the final `Conformer`. Iterate through atoms to get symbols (`atom.GetSymbol()`) and coordinates (`conf.GetAtomPosition(idx)`). Iterate through bonds to get start/end indices and bond type (`bond.GetBeginAtomIdx()`, `bond.GetEndAtomIdx()`, `bond.GetBondTypeAsDouble()`).
+    10. **Format Output:** Create a dictionary containing `atoms` (list of strings), `coords` (list of [x,y,z] lists), `bonds` (list of [idx1, idx2, order] lists), and `error` (string or null).
+    11. **Cleanup:** Ensure temporary image and Molfile are deleted (using `tempfile.TemporaryDirectory`).
+*   **Output:** HTTP Response with JSON body containing the dictionary created in step 10. Use appropriate HTTP status codes (200 for success, 400/422/500 for errors).
+*   **Error Handling:** Catch errors from `subprocess`, file I/O, RDKit functions. Populate the `error` field in the JSON response. Log detailed errors on the server.
+
+### 5. Receive Response & Handle Data (Android App - `feature_reactant`, `core`)
+
+*   **Frameworks:** Retrofit, Gson, Kotlin Coroutines
+*   **Input:** HTTP response from the server (Step 4).
+*   **Processing (`ReactantViewModel` continuation of `onProcessReactionClicked`):**
+    1.  Receive the Retrofit `Response<ModelDataResponse>`.
+    2.  Check `response.isSuccessful`. If not, extract error code/message and update UI state.
+    3.  If successful, get the body: `response.body()`.
+    4.  Check if the body is non-null and if `body.error` is null. If there's a server-side error reported in the body, update UI state with `body.error`.
+    5.  If `body` and its data (`atoms`, `coords`, `bonds`) are valid, serialize the successful `ModelDataResponse` object back into a complete JSON string using `Gson().toJson(body)`.
+    6.  Send this JSON string via the `_navigationEvent.send(NavigationEvent.NavigateToArProduct(modelDataJson))` channel.
+    7.  Update UI state to stop the loading indicator.
+*   **Output:** JSON string containing the complete 3D structure data, sent via navigation event, or an error message set in the UI state.
+*   **Error Handling:** Differentiate between network errors (non-2xx) and server-reported processing errors (2xx with error in body). Update UI state accordingly.
+
+### 6. Navigation & Data Passing (Android App - `feature_reactant`, Navigation Component)
+
+*   **Frameworks:** Jetpack Navigation Compose
+*   **Input:** `NavigationEvent.NavigateToArProduct` containing the JSON string.
+*   **Processing (`ReactantScreen`):**
+    1.  Collect the event from the `viewModel.navigationEvent` Flow.
+    2.  URL-encode the JSON string (`java.net.URLEncoder.encode`).
+    3.  Call the `onNavigateToArProduct(encodedJson)` lambda, triggering navigation via the Navigation Component graph, passing the encoded string as an argument.
+*   **Output:** Navigation action performed.
+
+### 7. AR Visualization (Android App - `feature_ar_product`)
+
+*   **Frameworks:** ARCore (`v1.48.0`), SceneView (`2.3.0`), Jetpack Compose, Gson
+*   **Input:** URL-encoded JSON string containing 3D structure data (passed via Navigation arguments).
+*   **Processing (`ArProductScreen`):**
+    1.  Receive the encoded JSON string navigation argument.
+    2.  URL-decode the string.
+    3.  Parse the JSON string back into a `ModelDataResponse` object (or directly into lists/maps) using Gson. Extract `atoms`, `coords`, `bonds` lists.
+    4.  **AR Scene Setup:** Initialize ARCore and SceneView (`ARScene`, `rememberEngine`, `rememberARCameraNode`).
+    5.  **Light Setup:** Add a fixed-intensity directional light (`rememberMainLightNode`) to the scene's `childNodes`.
+    6.  **Molecular Model Creation:**
+        *   Create a parent `Node` for the whole molecule.
+        *   Iterate through the `atoms` and `coords` lists:
+            *   For each atom, create a `SphereNode` with appropriate radius and color (based on atom symbol from `getAtomProperties`). Set its `position` based on the corresponding coordinates (applying scaling factor if needed). Add the sphere node as a child of the parent molecule node.
+        *   Iterate through the `bonds` list:
+            *   Get the start and end atom indices.
+            *   Retrieve the corresponding 3D coordinates from the `coords` list.
+            *   Calculate the bond length, midpoint, and direction vector.
+            *   Create a `CylinderNode` with appropriate radius and height (bond length).
+            *   Calculate and apply the correct rotation (`quaternion`) to orient the cylinder along the bond direction.
+            *   Set the cylinder's `position` to the calculated midpoint.
+            *   Add the cylinder node as a child of the parent molecule node.
+    7.  **Place Model:** Set the initial position and scale of the parent molecule node in the AR scene. Add the parent molecule node to the `ARScene`'s `childNodes`.
+    8.  **Interaction:** Implement gesture listeners (e.g., `onScale` for scaling the molecule node).
+*   **Output:** Visual AR rendering of the 3D product molecule anchored in the real world.
+*   **Error Handling:** Handle JSON parsing errors. Handle potential ARCore/SceneView initialization or rendering errors. Log errors, potentially show fallback UI.
+
+### 8. Error Handling & Debugging (Throughout Pipeline)
+
+*   **Framework:** Custom Logger + Android UI Components
+*   **Processing:**
+    1.  Implement logging utility (`core` module). Log inputs, outputs, status, timing, errors for each step. Use standard Android `Log`.
+    2.  Implement user-friendly error messages in `ReactantViewModel` state, displayed by `ReactantScreen`.
+    3.  Implement Backend Visualization screen (`feature_backend_vis`) to show relevant stages (e.g., Image Sent, Server Response Status, Data Received, AR Render Status).
+    4.  Implement Debug Log screen (`app` or `core`) with scrollable logs and copy functionality.
+
+### 9. Performance Optimization (Throughout Pipeline)
+
+*   **Frameworks:** Kotlin Coroutines, Android SDK
+*   **Processing:**
+    1.  Run Step 3 & 5 (Network I/O, JSON parsing) on background threads (Coroutines `Dispatchers.IO`).
+    2.  Run Step 7 (AR model creation) potentially within a `LaunchedEffect` or background coroutine if complex, updating state for Compose.
+    3.  Implement UI progress indicators (`ReactantScreen`).
+    4.  Optimize 3D models (e.g., reuse materials if possible, though currently created per-node).
+    5.  Consider image compression before sending to server.
+
+---

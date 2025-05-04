@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Define a path for images captured by the camera -->
+    <!-- Using cache directory is common for temporary images -->
+    <cache-path name="captured_images" path="images/"/>
+    <!-- Or use files-path for more persistent storage if needed -->
+    <!-- <files-path name="my_images" path="images/"/> -->
+</paths>
