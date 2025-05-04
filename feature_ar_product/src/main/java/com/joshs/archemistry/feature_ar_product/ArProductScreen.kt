@@ -285,6 +285,11 @@ fun BasicARView(modelDataJson: String?) {
             }
             val startNodeIndex = bond[0]
             val endNodeIndex = bond[1]
+            
+            // Get bond type (1=single, 2=double, 3=triple, 1.5=aromatic)
+            // Default to 1 (single bond) if bond type is not specified
+            val bondType = if (bond.size > 2) bond[2] else 1
+            
             val start = atomNodes[startNodeIndex]
             val end = atomNodes[endNodeIndex]
 
@@ -296,7 +301,7 @@ fun BasicARView(modelDataJson: String?) {
                 Log.w("ARChemDebug", "Skipping bond $index: End node not found for index $endNodeIndex")
                 return@forEachIndexed
             }
-            Log.d("ARChemDebug", "Found start and end nodes for bond $index.")
+            Log.d("ARChemDebug", "Found start and end nodes for bond $index. Bond type: $bondType")
 
             // Get original coordinates from the server data
             val coord1Raw = coords.getOrNull(startNodeIndex)
@@ -317,47 +322,96 @@ fun BasicARView(modelDataJson: String?) {
             val diffScaled = pos2Scaled - pos1Scaled
             val lenScaled = length(diffScaled)
             val dirScaled = normalize(diffScaled)
-
-            // --- Original Cylinder code restored ---
-            // Add check for non-zero length before creating cylinder
+            
+            // Calculate perpendicular vector for offsetting double/triple bonds
+            // We need a vector perpendicular to the bond direction
+            val upVector = Float3(0f, 1f, 0f) // Use world up as reference
+            // If bond direction is too close to up vector, use right vector instead
+            val referenceVector = if (kotlin.math.abs(dot(dirScaled, upVector)) > 0.9f) {
+                Float3(1f, 0f, 0f) // Use right vector
+            } else {
+                upVector // Use up vector
+            }
+            // Calculate perpendicular vector
+            val perpVector = normalize(cross(dirScaled, referenceVector))
+            
+            // Offset distance for double/triple bonds (increased for better visibility)
+            val offsetDistance = 0.08f * scaleFactor
+            
+            // --- Bond rendering based on bond type ---
             if (lenScaled > 1e-4f) { // Use a small tolerance
                 val material = materialLoader.createColorInstance(Color.Gray)
-                // Create cylinder centered at the origin
-                // Create cylinder centered at the origin
-                val cylinder = CylinderNode(
-                    engine = engine,
-                    radius = bondRadius * scaleFactor,
-                    height = lenScaled,
-                    center = Position(x = 0f, y = 0f, z = 0f) // Origin
-                ).apply {
-                    materialInstance = material
-                    // Calculate rotation to align default Y with bond direction
-                    val defaultDir = Float3(0f, 1f, 0f) // Cylinder's default orientation axis (Assuming Y-up)
-                    val rotationAxis = normalize(cross(defaultDir, dirScaled))
-                    // Clamp dot product to avoid NaN from acos due to floating point errors
-                    val dotProd = clamp(dot(defaultDir, dirScaled), -1.0f, 1.0f)
-                    val angleRad = kotlin.math.acos(dotProd) // Angle in radians
+                
+                // Function to create a cylinder with offset and custom radius
+                fun createCylinder(offset: Float3, radiusMultiplier: Float = 1.0f): CylinderNode {
+                    // Calculate offset position
+                    val offsetMidpoint = midScaled + offset
+                    
+                    return CylinderNode(
+                        engine = engine,
+                        radius = bondRadius * scaleFactor * radiusMultiplier,
+                        height = lenScaled,
+                        center = Position(x = 0f, y = 0f, z = 0f) // Origin
+                    ).apply {
+                        materialInstance = material
+                        // Calculate rotation to align default Y with bond direction
+                        val defaultDir = Float3(0f, 1f, 0f) // Cylinder's default orientation axis (Assuming Y-up)
+                        val rotationAxis = normalize(cross(defaultDir, dirScaled))
+                        // Clamp dot product to avoid NaN from acos due to floating point errors
+                        val dotProd = clamp(dot(defaultDir, dirScaled), -1.0f, 1.0f)
+                        val angleRad = kotlin.math.acos(dotProd) // Angle in radians
 
-                    // Apply rotation if axis is valid (vectors are not collinear)
-                    // Check if vectors are nearly collinear (dot product close to 1 or -1)
-                    if (kotlin.math.abs(dotProd) < 0.9999f) {
-                        // Axis is valid, calculate quaternion
-                        quaternion = Quaternion.fromAxisAngle(rotationAxis, degrees(angleRad))
-                    } else if (dotProd < -0.999f) {
-                        // Vectors are opposite (180 degrees)
-                        // Rotate 180 degrees around any perpendicular axis (e.g., X-axis)
-                        quaternion = Quaternion.fromAxisAngle(Float3(1f, 0f, 0f), 180f)
+                        // Apply rotation if axis is valid (vectors are not collinear)
+                        // Check if vectors are nearly collinear (dot product close to 1 or -1)
+                        if (kotlin.math.abs(dotProd) < 0.9999f) {
+                            // Axis is valid, calculate quaternion
+                            quaternion = Quaternion.fromAxisAngle(rotationAxis, degrees(angleRad))
+                        } else if (dotProd < -0.999f) {
+                            // Vectors are opposite (180 degrees)
+                            // Rotate 180 degrees around any perpendicular axis (e.g., X-axis)
+                            quaternion = Quaternion.fromAxisAngle(Float3(1f, 0f, 0f), 180f)
+                        }
+                        // If vectors are identical (dot product is ~1), no rotation is needed (quaternion remains identity).
+
+                        // Set position to the midpoint *after* rotation
+                        position = offsetMidpoint
                     }
-                    // If vectors are identical (dot product is ~1), no rotation is needed (quaternion remains identity).
-
-                    // Set position to the midpoint *after* rotation
-                    position = midScaled
                 }
-                Log.d("ARChemDebug", "Adding cylinder for bond $index to moleculeNode.")
-                moleculeNode.addChildNode(cylinder)
-                Log.d("ARChemDebug", "Cylinder for bond $index added.")
+                
+                when (bondType) {
+                    1 -> {
+                        // Single bond - create one cylinder at the midpoint
+                        val cylinder = createCylinder(Float3(0f, 0f, 0f))
+                        Log.d("ARChemDebug", "Adding single bond cylinder for bond $index")
+                        moleculeNode.addChildNode(cylinder)
+                    }
+                    2 -> {
+                        // Double bond - create two cylinders side by side with slightly thinner radius
+                        val cylinder1 = createCylinder(perpVector * offsetDistance, 0.85f)
+                        val cylinder2 = createCylinder(perpVector * -offsetDistance, 0.85f)
+                        Log.d("ARChemDebug", "Adding double bond cylinders for bond $index")
+                        moleculeNode.addChildNode(cylinder1)
+                        moleculeNode.addChildNode(cylinder2)
+                    }
+                    3 -> {
+                        // Triple bond - create three cylinders in a triangular arrangement with thinner radius
+                        val cylinder1 = createCylinder(Float3(0f, 0f, 0f), 0.8f) // Center
+                        val cylinder2 = createCylinder(perpVector * offsetDistance * 1.2f, 0.8f) // Offset to one side
+                        val cylinder3 = createCylinder(perpVector * -offsetDistance * 1.2f, 0.8f) // Offset to other side
+                        Log.d("ARChemDebug", "Adding triple bond cylinders for bond $index")
+                        moleculeNode.addChildNode(cylinder1)
+                        moleculeNode.addChildNode(cylinder2)
+                        moleculeNode.addChildNode(cylinder3)
+                    }
+                    else -> {
+                        // For any other bond type (including aromatic), default to single bond
+                        val cylinder = createCylinder(Float3(0f, 0f, 0f))
+                        Log.d("ARChemDebug", "Adding default cylinder for bond type $bondType (bond $index)")
+                        moleculeNode.addChildNode(cylinder)
+                    }
+                }
             } else {
-                Log.w("ARChemDebug", "Skipping cylinder for bond $index: Zero or near-zero length ($lenScaled)")
+                Log.w("ARChemDebug", "Skipping bond $index: Zero or near-zero length ($lenScaled)")
             }
         }
 
