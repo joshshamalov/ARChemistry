@@ -33,11 +33,20 @@ import io.github.sceneview.rememberMainLightNode
 import io.github.sceneview.rememberMaterialLoader
 import kotlinx.coroutines.launch
 
+// Data class for individual molecule structure (reactant or product)
+// Make fields nullable to match ApiService.kt definition
 data class MoleculeData(
-    @SerializedName("atoms") val atoms: List<String>,
-    @SerializedName("coords") val coords: List<List<Double>>,
-    @SerializedName("bonds") val bonds: List<List<Int>>,
-    @SerializedName("error") val error: String?
+    @SerializedName("atoms") val atoms: List<String>? = null,
+    @SerializedName("coords") val coords: List<List<Double>>? = null,
+    @SerializedName("bonds") val bonds: List<List<Int>>? = null,
+    @SerializedName("error") val error: String? = null
+)
+
+// Data class for the nested response from the server
+data class ReactionResponse(
+    @SerializedName("reactant") val reactant: MoleculeData? = null,
+    @SerializedName("product") val product: MoleculeData? = null,
+    @SerializedName("error") val error: String? = null
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -184,27 +193,53 @@ fun BasicARView(modelDataJson: String?) {
     val moleculeNode = remember { Node(engine) }
     val childNodes = remember { mutableStateListOf<Node>() }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    // State for the button text toggle
+    var showProductText by remember { mutableStateOf(true) }
 
-    LaunchedEffect(modelDataJson) {
+    // Make LaunchedEffect depend on showProductText to rebuild when button is clicked
+    LaunchedEffect(modelDataJson, showProductText) {
         if (modelDataJson == null) {
             errorMessage = "Model data is null."
             return@LaunchedEffect
         }
 
-        val moleculeData = try {
-            Gson().fromJson(modelDataJson, MoleculeData::class.java)
+        // Parse the JSON as a ReactionResponse
+        val reactionResponse = try {
+            Gson().fromJson(modelDataJson, ReactionResponse::class.java)
         } catch (e: Exception) {
             errorMessage = "Failed to parse model data: ${e.message}"
             return@LaunchedEffect
         }
 
-        if (moleculeData?.error != null) {
-            errorMessage = "Server error: ${moleculeData.error}"
+        // Check for overall error
+        if (reactionResponse?.error != null) {
+            errorMessage = "Server error: ${reactionResponse.error}"
             return@LaunchedEffect
         }
 
-        if (moleculeData.atoms.isEmpty()) {
-            errorMessage = "Parsed data is invalid or empty."
+        // Select the appropriate molecule data based on showProductText
+        val moleculeData = if (showProductText) {
+            reactionResponse.product
+        } else {
+            reactionResponse.reactant
+        }
+
+        // Check if the selected molecule data is valid
+        if (moleculeData == null) {
+            errorMessage = if (showProductText) "Product data is missing." else "Reactant data is missing."
+            return@LaunchedEffect
+        }
+
+        // Use safe calls to avoid smart casting issues
+        if (moleculeData?.error != null) {
+            errorMessage = if (showProductText) "Product error: ${moleculeData.error}" else "Reactant error: ${moleculeData.error}"
+            return@LaunchedEffect
+        }
+
+        // Use safe calls with elvis operator to handle potential nulls
+        val atoms = moleculeData?.atoms ?: emptyList()
+        if (atoms.isEmpty()) {
+            errorMessage = if (showProductText) "Product data is empty." else "Reactant data is empty."
             return@LaunchedEffect
         }
 
@@ -214,9 +249,9 @@ fun BasicARView(modelDataJson: String?) {
         }
         childNodes.clear()
 
-        val atoms = moleculeData.atoms
-        val coords = moleculeData.coords
-        val bonds = moleculeData.bonds
+        // Use safe calls with elvis operator for all properties
+        val coords = moleculeData?.coords ?: emptyList()
+        val bonds = moleculeData?.bonds ?: emptyList()
         Log.d("ARChemDebug", "Received ${atoms.size} atoms and ${bonds.size} bonds.") // Log bond count
         val atomNodes = mutableMapOf<Int, SphereNode>()
         val bondRadius = 0.08f
@@ -331,40 +366,67 @@ fun BasicARView(modelDataJson: String?) {
         errorMessage = null
     }
 
-    ARScene(
-        modifier = Modifier.fillMaxSize(),
-        engine = engine,
-        // Remove mainLightNode parameter, add light via childNodes
-        cameraNode = cameraNode,
-        childNodes = childNodes + listOfNotNull(mainLightNode), // Add light node here
-        planeRenderer = false,
-        activity = context as? ComponentActivity,
-        onGestureListener = object : GestureDetector.OnGestureListener {
-            override fun onSingleTapConfirmed(e: MotionEvent, node: Node?) {}
-            override fun onSingleTapUp(e: MotionEvent, node: Node?) {}
-            override fun onDown(e: MotionEvent, node: Node?) {}
-            override fun onShowPress(e: MotionEvent, node: Node?) {}
-            override fun onContextClick(e: MotionEvent, node: Node?) {}
-            override fun onDoubleTap(e: MotionEvent, node: Node?) {}
-            override fun onDoubleTapEvent(e: MotionEvent, node: Node?) {}
-            override fun onLongPress(e: MotionEvent, node: Node?) {}
-            override fun onMove(detector: MoveGestureDetector, e: MotionEvent, node: Node?) {}
-            override fun onMoveBegin(detector: MoveGestureDetector, e: MotionEvent, node: Node?) {}
-            override fun onMoveEnd(detector: MoveGestureDetector, e: MotionEvent, node: Node?) {}
-            override fun onRotateBegin(detector: RotateGestureDetector, e: MotionEvent, node: Node?) {}
-            override fun onRotate(detector: RotateGestureDetector, e: MotionEvent, node: Node?) {}
-            override fun onRotateEnd(detector: RotateGestureDetector, e: MotionEvent, node: Node?) {}
-            override fun onScaleBegin(detector: ScaleGestureDetector, e: MotionEvent, node: Node?) {}
-            override fun onScale(detector: ScaleGestureDetector, e: MotionEvent, node: Node?) {
-                if (node == null || node == moleculeNode || node.parent == moleculeNode) {
-                    moleculeNode.scale *= detector.scaleFactor
+    // Wrap everything in a Box to allow for proper UI layering
+    Box(modifier = Modifier.fillMaxSize()) {
+        // AR Scene takes the full size of the Box
+        ARScene(
+            modifier = Modifier.fillMaxSize(),
+            engine = engine,
+            cameraNode = cameraNode,
+            childNodes = childNodes + listOfNotNull(mainLightNode),
+            planeRenderer = false,
+            activity = context as? ComponentActivity,
+            onGestureListener = object : GestureDetector.OnGestureListener {
+                override fun onSingleTapConfirmed(e: MotionEvent, node: Node?) {}
+                override fun onSingleTapUp(e: MotionEvent, node: Node?) {}
+                override fun onDown(e: MotionEvent, node: Node?) {}
+                override fun onShowPress(e: MotionEvent, node: Node?) {}
+                override fun onContextClick(e: MotionEvent, node: Node?) {}
+                override fun onDoubleTap(e: MotionEvent, node: Node?) {}
+                override fun onDoubleTapEvent(e: MotionEvent, node: Node?) {}
+                override fun onLongPress(e: MotionEvent, node: Node?) {}
+                override fun onMove(detector: MoveGestureDetector, e: MotionEvent, node: Node?) {}
+                override fun onMoveBegin(detector: MoveGestureDetector, e: MotionEvent, node: Node?) {}
+                override fun onMoveEnd(detector: MoveGestureDetector, e: MotionEvent, node: Node?) {}
+                override fun onRotateBegin(detector: RotateGestureDetector, e: MotionEvent, node: Node?) {}
+                override fun onRotate(detector: RotateGestureDetector, e: MotionEvent, node: Node?) {}
+                override fun onRotateEnd(detector: RotateGestureDetector, e: MotionEvent, node: Node?) {}
+                override fun onScaleBegin(detector: ScaleGestureDetector, e: MotionEvent, node: Node?) {}
+                override fun onScale(detector: ScaleGestureDetector, e: MotionEvent, node: Node?) {
+                    if (node == null || node == moleculeNode || node.parent == moleculeNode) {
+                        moleculeNode.scale *= detector.scaleFactor
+                    }
                 }
+                override fun onScaleEnd(detector: ScaleGestureDetector, e: MotionEvent, node: Node?) {}
+                override fun onScroll(e1: MotionEvent?, e2: MotionEvent, node: Node?, distance: Float2) {}
+                override fun onFling(e1: MotionEvent?, e2: MotionEvent, node: Node?, velocity: Float2) {}
             }
-            override fun onScaleEnd(detector: ScaleGestureDetector, e: MotionEvent, node: Node?) {}
-            override fun onScroll(e1: MotionEvent?, e2: MotionEvent, node: Node?, distance: Float2) {}
-            override fun onFling(e1: MotionEvent?, e2: MotionEvent, node: Node?, velocity: Float2) {}
+        )
+        
+        // Add the toggle button UI inside the Box, on top of the ARScene
+        Button(
+            onClick = { showProductText = !showProductText }, // Toggle the text state
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 24.dp),
+            // Enable only if both reactant and product data are available
+            enabled = true // We'll keep it always enabled for simplicity
+        ) {
+            // Button text shows what will be displayed next (not what's currently shown)
+            Text(if (showProductText) "Show Reactant" else "Show Product")
         }
-    )
+        
+        // Display Error Message if any (related to AR view loading)
+        if (errorMessage != null) {
+            Text(
+                text = "Error: $errorMessage",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(16.dp)
+                    .fillMaxWidth()
+            )
+        }
+    }
 }
-
-// Removed custom lookRotation function

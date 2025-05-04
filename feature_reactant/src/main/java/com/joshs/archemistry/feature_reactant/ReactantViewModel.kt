@@ -9,7 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.joshs.archemistry.core.network.ApiService // Import ApiService
 import com.joshs.archemistry.core.network.RetrofitClient // Import RetrofitClient
 import com.google.gson.Gson // Import Gson
-import com.joshs.archemistry.core.network.ModelDataResponse
+import com.joshs.archemistry.core.network.ReactionResponse
+import com.joshs.archemistry.core.network.MoleculeStructureData
 import com.joshs.archemistry.core.network.toRequestBody
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel // Import Channel
@@ -71,8 +72,8 @@ class ReactantViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isProcessing = true, errorMessage = null) }
             var errorMsg: String? = null
-            // Store the received model data (or null if error)
-            var receivedModelData: ModelDataResponse?
+            // Store the received reaction response data (or null if error)
+            var receivedReactionData: ReactionResponse? = null
 
             try {
                 // 1. Get image bytes and create MultipartBody.Part, passing the resolver
@@ -94,24 +95,35 @@ class ReactantViewModel(
 
                     // 3. Handle response
                     if (response.isSuccessful) {
-                        val modelDataResponse = response.body()
-                        // Check if the body is not null AND the error field within the body is null
-                        if (modelDataResponse != null && modelDataResponse.error == null) {
-                            // Validate that we received the expected data
-                            if (modelDataResponse.atoms != null && modelDataResponse.coords != null && modelDataResponse.bonds != null) {
-                                receivedModelData = modelDataResponse // Store the successful data
-                                println("Received 3D Model Data: ${receivedModelData.atoms!!.size} atoms") // Log success
-                                // Serialize data to JSON
-                                val modelDataJson = Gson().toJson(receivedModelData)
-                                // Emit navigation event
-                                _navigationEvent.send(NavigationEvent.NavigateToArProduct(modelDataJson))
+                        val reactionResponse = response.body()
+                        // Check if the body is not null AND the top-level error field is null
+                        if (reactionResponse != null && reactionResponse.error == null) {
+                            // Check if at least reactant OR product data is present and valid
+                            // Use safe calls to avoid smart casting issues
+                            val reactantValid = reactionResponse.reactant != null &&
+                                               reactionResponse.reactant?.error == null &&
+                                               reactionResponse.reactant?.atoms?.isNotEmpty() == true
+                            
+                            val productValid = reactionResponse.product != null &&
+                                              reactionResponse.product?.error == null &&
+                                              reactionResponse.product?.atoms?.isNotEmpty() == true
+
+                            if (reactantValid || productValid) {
+                                receivedReactionData = reactionResponse // Store the successful response
+                                println("Received Reaction Data: Reactant valid=$reactantValid, Product valid=$productValid") // Log success
+                                
+                                // Serialize the entire ReactionResponse to JSON
+                                val reactionJson = Gson().toJson(receivedReactionData)
+                                
+                                // Emit navigation event with the full JSON
+                                _navigationEvent.send(NavigationEvent.NavigateToArProduct(reactionJson))
                             } else {
-                                // Successful response code, but missing data in the body
+                                // Successful response code, but neither reactant nor product data is valid
                                 errorMsg = "Server returned incomplete model data."
                             }
                         } else {
-                            // Server processed but returned an error message in the body (e.g., Imago/RDKit/Reaction failed)
-                            errorMsg = modelDataResponse?.error ?: "Server failed to process image/reaction."
+                            // Server processed but returned a top-level error message in the body
+                            errorMsg = reactionResponse?.error ?: "Server failed to process image/reaction."
                         }
                     } else {
                         // Network error or non-2xx HTTP status
